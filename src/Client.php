@@ -8,8 +8,12 @@ use Http\Client\Exception\TransferException;
 use Http\Client\HttpClient;
 use Http\Discovery\MessageFactoryDiscovery;
 use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 
+/**
+ * A minimalistic HTTP client
+ *
+ * @author Tobias Nyholm <tobias.nyholm@gmail.com>
+ */
 class Client implements HttpClient
 {
     private $curl;
@@ -23,9 +27,9 @@ class Client implements HttpClient
 
         if (false === $data) {
             $errorMsg = curl_error($curl);
-            $errorNo  = curl_errno($curl);
+            $errorNo = curl_errno($curl);
 
-            throw new RequestException(sprintf('Error (%d): %s', $errorNo, $errorMsg, $request));
+            throw new RequestException(sprintf('Error (%d): %s', $errorNo, $errorMsg), $request);
         }
 
         return $this->createResponse($curl, $data);
@@ -52,10 +56,10 @@ class Client implements HttpClient
     }
 
     /**
-     * Populates a response object.
+     * Create a response object.
      *
-     * @param resource         $curl     A cURL resource
-     * @param string           $raw      The raw response string
+     * @param resource $curl A cURL resource
+     * @param string   $raw  The raw response string
      */
     private function createResponse($curl, $raw)
     {
@@ -78,6 +82,7 @@ class Client implements HttpClient
 
     /**
      * Parse raw data for headers.
+     *
      * @param string $raw Raw response byt no body
      *
      * @return array with first line and the headers.
@@ -99,7 +104,7 @@ class Client implements HttpClient
     }
 
     /**
-     * Set CURL options from the Request
+     * Set CURL options from the Request.
      *
      * @param $curl
      * @param RequestInterface $request
@@ -107,10 +112,10 @@ class Client implements HttpClient
     private function setOptionsFromRequest($curl, RequestInterface $request)
     {
         $options = array(
-            CURLOPT_HTTP_VERSION  => $request->getProtocolVersion() === '1.0' ? CURL_HTTP_VERSION_1_0 : CURL_HTTP_VERSION_1_1,
+            CURLOPT_HTTP_VERSION => $request->getProtocolVersion() === '1.0' ? CURL_HTTP_VERSION_1_0 : CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => $request->getMethod(),
-            CURLOPT_URL           => (string) $request->getUri(),
-            CURLOPT_HTTPHEADER    => $this->getHeaders($request),
+            CURLOPT_URL => (string) $request->getUri(),
+            CURLOPT_HTTPHEADER => $this->getHeaders($request),
             CURLOPT_POSTFIELDS => (string) $request->getBody(),
         );
 
@@ -118,7 +123,7 @@ class Client implements HttpClient
     }
 
     /**
-     * Get headers from a PSR-7 Request to Curl format
+     * Get headers from a PSR-7 Request to Curl format.
      *
      * @param RequestInterface $request
      *
@@ -135,5 +140,4 @@ class Client implements HttpClient
 
         return $headers;
     }
-
 }
