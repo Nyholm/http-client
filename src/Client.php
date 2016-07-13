@@ -10,7 +10,7 @@ use Http\Discovery\MessageFactoryDiscovery;
 use Psr\Http\Message\RequestInterface;
 
 /**
- * A minimalistic HTTP client
+ * A minimalistic HTTP client.
  *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -65,6 +65,8 @@ class Client implements HttpClient
      * Create a response object.
      *
      * @param string $raw The raw response string
+     *
+     * @return \Psr\Http\Message\ResponseInterface
      */
     private function createResponse($raw)
     {
@@ -97,7 +99,7 @@ class Client implements HttpClient
         $rawHeaders = preg_split('|(\\r?\\n)|', $raw);
         $statusLine = array_shift($rawHeaders);
 
-        return array_reduce($rawHeaders, function($parsedHeaders, $header) {
+        return array_reduce($rawHeaders, function ($parsedHeaders, $header) {
             list($name, $value) = preg_split('|: |', $header);
             $parsedHeaders[1][$name][] = $value;
 
@@ -109,6 +111,7 @@ class Client implements HttpClient
      * Set CURL options from the Request.
      *
      * @param RequestInterface $request
+     *
      * @return bool
      */
     private function setOptionsFromRequest(RequestInterface $request)
