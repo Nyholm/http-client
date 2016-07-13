@@ -31,9 +31,7 @@ class Client implements HttpClient
 
     public function __construct()
     {
-        $this->curl = curl_init();
-
-        if (false === $this->curl) {
+        if (false === $this->curl = curl_init()) {
             throw new Exception('Unable to create a new cURL handle');
         }
 
