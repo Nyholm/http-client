@@ -2,6 +2,9 @@
 
 namespace Nyholm\HttpClient;
 
+use Http\Client\Exception\HttpException;
+use Http\Client\Exception\RequestException;
+use Http\Client\Exception\TransferException;
 use Http\Client\HttpClient;
 use Http\Discovery\MessageFactoryDiscovery;
 use Psr\Http\Message\RequestInterface;
@@ -22,11 +25,7 @@ class Client implements HttpClient
             $errorMsg = curl_error($curl);
             $errorNo  = curl_errno($curl);
 
-            // TODO use Http exception
-            // TODO check if we got a response
-            $e = new \Exception($errorMsg, $errorNo);
-
-            throw $e;
+            throw new RequestException(sprintf('Error (%d): %s', $errorNo, $errorMsg, $request));
         }
 
         return $this->createResponse($curl, $data);
@@ -38,7 +37,7 @@ class Client implements HttpClient
             return $this->curl;
         }
         if (false === $curl = curl_init()) {
-            throw new \Exception('Unable to create a new cURL handle');
+            throw new TransferException('Unable to create a new cURL handle');
         }
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($curl, CURLOPT_HEADER, true);
@@ -71,7 +70,7 @@ class Client implements HttpClient
         list($line, $headers) = $this->parseHeaders(rtrim(substr($raw, 0, $pos)));
         $body = strlen($raw) > $pos ? substr($raw, $pos) : '';
         if (!preg_match('|^HTTP/([12].[01]) ([1-9][0-9][0-9]) (.*?)$|', $line, $matches)) {
-            throw new \Exception('Not a HTTP response');
+            throw new HttpException('Not a HTTP response');
         }
 
         return MessageFactoryDiscovery::find()->createResponse((int) $matches[2], $matches[3], $headers, $body, $matches[1]);
