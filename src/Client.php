@@ -70,7 +70,6 @@ class Client implements HttpClient
      */
     private function createResponse($raw)
     {
-        // fixes bug https://sourceforge.net/p/curl/bugs/1204/
         if (version_compare(curl_version()['version'], '7.30.0', '<')) {
             $pos = strlen($raw) - curl_getinfo($this->curl, CURLINFO_SIZE_DOWNLOAD);
         } else {
