@@ -2,9 +2,9 @@
 
 namespace Nyholm\HttpClient;
 
+use Exception;
 use Http\Client\Exception\HttpException;
 use Http\Client\Exception\RequestException;
-use Http\Client\Exception\TransferException;
 use Http\Client\HttpClient;
 use Http\Discovery\MessageFactoryDiscovery;
 use Psr\Http\Message\RequestInterface;
@@ -31,19 +31,20 @@ class Client implements HttpClient
 
     public function __construct()
     {
-        curl_setopt_array($this->curl = curl_init(), self::CURL_DEFAULT_OPTIONS);
+        if (false === $this->curl = curl_init()) {
+            throw new Exception('Unable to create a new cURL handle');
+        }
+
+        curl_setopt_array($this->curl, self::CURL_DEFAULT_OPTIONS);
     }
 
     public function sendRequest(RequestInterface $request)
     {
-        if (false === $this->curl) {
-            throw new TransferException('Unable to create a new cURL handle');
+        if (false === $this->setOptionsFromRequest($request)) {
+            throw new RequestException('Not a valid request.', $request);
         }
 
-        $this->setOptionsFromRequest($request);
-        $data = curl_exec($this->curl);
-
-        if (false === $data) {
+        if (false === $data = curl_exec($this->curl)) {
             throw new RequestException(
                 sprintf('Error (%d): %s', curl_errno($this->curl), curl_error($this->curl)),
                 $request
@@ -101,10 +102,11 @@ class Client implements HttpClient
      * Set CURL options from the Request.
      *
      * @param RequestInterface $request
+     * @return bool
      */
     private function setOptionsFromRequest(RequestInterface $request)
     {
-        curl_setopt_array(
+        return curl_setopt_array(
             $this->curl,
             [
                 CURLOPT_HTTP_VERSION => $request->getProtocolVersion() === '1.0' ? CURL_HTTP_VERSION_1_0 : CURL_HTTP_VERSION_1_1,
