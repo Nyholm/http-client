@@ -71,9 +71,9 @@ class Client implements HttpClient
             $pos = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
         }
 
-        list($line, $headers) = $this->parseHeaders(rtrim(substr($raw, 0, $pos)));
+        list($statsLine, $headers) = $this->parseHeaders(rtrim(substr($raw, 0, $pos)));
         $body = strlen($raw) > $pos ? substr($raw, $pos) : '';
-        if (!preg_match('|^HTTP/([12].[01]) ([1-9][0-9][0-9]) (.*?)$|', $line, $matches)) {
+        if (!preg_match('|^HTTP/([12].[01]) ([1-9][0-9][0-9]) (.*?)$|', $statsLine, $matches)) {
             throw new HttpException('Not a HTTP response');
         }
 
@@ -85,22 +85,22 @@ class Client implements HttpClient
      *
      * @param string $raw Raw response byt no body
      *
-     * @return array with first line and the headers.
+     * @return array with status line and the headers.
      */
     private function parseHeaders($raw)
     {
-        $firstLine = null;
+        $statusLine = null;
         $headers = array();
         foreach (preg_split('|(\\r?\\n)|', $raw) as $header) {
-            if (!$firstLine) {
-                $firstLine = $header;
+            if (!$statusLine) {
+                $statusLine = $header;
                 continue;
             }
             list($name, $value) = preg_split('|: |', $header);
             $headers[$name][] = $value;
         }
 
-        return [$firstLine, $headers];
+        return [$statusLine, $headers];
     }
 
     /**
