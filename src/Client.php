@@ -31,15 +31,17 @@ class Client implements HttpClient
 
     public function __construct()
     {
-        curl_setopt_array($this->curl = curl_init(), self::CURL_DEFAULT_OPTIONS);
-    }
+        $this->curl = curl_init();
 
-    public function sendRequest(RequestInterface $request)
-    {
         if (false === $this->curl) {
             throw new TransferException('Unable to create a new cURL handle');
         }
 
+        curl_setopt_array($this->curl, self::CURL_DEFAULT_OPTIONS);
+    }
+
+    public function sendRequest(RequestInterface $request)
+    {
         $this->setOptionsFromRequest($request);
         $data = curl_exec($this->curl);
 
