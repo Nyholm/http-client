@@ -1,8 +1,8 @@
 {
     "name": "nyholm/http-client",
-    "description": "",
+    "description": "A light weight and super fast HTTP client",
     "license": "MIT",
-    "keywords": ["http", "client"],
+    "keywords": ["http", "client", "PSR-7"],
     "homepage": "http://tnyholm.se",
     "authors": [
         {

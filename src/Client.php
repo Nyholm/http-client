@@ -24,9 +24,13 @@ class Client implements HttpClient
         CURLOPT_FAILONERROR => 0,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_TIMEOUT => 10,
+        // We fix the timeout to 60 seconds
+        CURLOPT_TIMEOUT => 60,
     ];
 
+    /**
+     * @var resource
+     */
     private $curl;
 
     public function __construct()
@@ -38,6 +42,9 @@ class Client implements HttpClient
         curl_setopt_array($this->curl, self::CURL_DEFAULT_OPTIONS);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function sendRequest(RequestInterface $request)
     {
         if (false === $this->setOptionsFromRequest($request)) {
