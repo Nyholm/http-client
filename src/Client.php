@@ -16,73 +16,61 @@ use Psr\Http\Message\RequestInterface;
  */
 class Client implements HttpClient
 {
+    const CURL_DEFAULT_OPTIONS = [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER => true,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_MAXREDIRS => 0,
+        CURLOPT_FAILONERROR => 0,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_TIMEOUT => 10,
+    ];
+
     private $curl;
 
-    /**
-     * Make sure to destroy $curl.
-     */
-    public function __destruct()
+    public function __construct()
     {
-        curl_close($this->curl);
-        $this->curl = null;
+        curl_setopt_array($this->curl = curl_init(), self::CURL_DEFAULT_OPTIONS);
     }
 
     public function sendRequest(RequestInterface $request)
     {
-        $curl = $this->createCurlHandle();
-        $this->setOptionsFromRequest($curl, $request);
-
-        $data = curl_exec($curl);
-
-        if (false === $data) {
-            $errorMsg = curl_error($curl);
-            $errorNo = curl_errno($curl);
-
-            throw new RequestException(sprintf('Error (%d): %s', $errorNo, $errorMsg), $request);
-        }
-
-        return $this->createResponse($curl, $data);
-    }
-
-    private function createCurlHandle()
-    {
-        if ($this->curl) {
-            return $this->curl;
-        }
-        if (false === $curl = curl_init()) {
+        if (false === $this->curl) {
             throw new TransferException('Unable to create a new cURL handle');
         }
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($curl, CURLOPT_HEADER, true);
-        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
-        curl_setopt($curl, CURLOPT_MAXREDIRS, 0);
-        curl_setopt($curl, CURLOPT_FAILONERROR, 0);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
-        curl_setopt($curl, CURLOPT_TIMEOUT, 10);
 
-        return $this->curl = $curl;
+        $this->setOptionsFromRequest($request);
+        $data = curl_exec($this->curl);
+
+        if (false === $data) {
+            throw new RequestException(
+                sprintf('Error (%d): %s', curl_errno($this->curl), curl_error($this->curl)),
+                $request
+            );
+        }
+
+        return $this->createResponse($data);
     }
 
     /**
      * Create a response object.
      *
-     * @param resource $curl A cURL resource
-     * @param string   $raw  The raw response string
+     * @param string $raw The raw response string
      */
-    private function createResponse($curl, $raw)
+    private function createResponse($raw)
     {
         // fixes bug https://sourceforge.net/p/curl/bugs/1204/
-        $version = curl_version();
-        if (version_compare($version['version'], '7.30.0', '<')) {
-            $pos = strlen($raw) - curl_getinfo($curl, CURLINFO_SIZE_DOWNLOAD);
+        if (version_compare(curl_version()['version'], '7.30.0', '<')) {
+            $pos = strlen($raw) - curl_getinfo($this->curl, CURLINFO_SIZE_DOWNLOAD);
         } else {
-            $pos = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+            $pos = curl_getinfo($this->curl, CURLINFO_HEADER_SIZE);
         }
 
-        list($statsLine, $headers) = $this->parseHeaders(rtrim(substr($raw, 0, $pos)));
+        list($statusLine, $headers) = $this->parseHeaders(rtrim(substr($raw, 0, $pos)));
         $body = strlen($raw) > $pos ? substr($raw, $pos) : '';
-        if (!preg_match('|^HTTP/([12].[01]) ([1-9][0-9][0-9]) (.*?)$|', $statsLine, $matches)) {
+
+        if (!preg_match('|^HTTP/([12].[01]) ([1-9][0-9][0-9]) (.*?)$|', $statusLine, $matches)) {
             throw new HttpException('Not a HTTP response');
         }
 
@@ -98,37 +86,34 @@ class Client implements HttpClient
      */
     private function parseHeaders($raw)
     {
-        $statusLine = null;
-        $headers = array();
-        foreach (preg_split('|(\\r?\\n)|', $raw) as $header) {
-            if (!$statusLine) {
-                $statusLine = $header;
-                continue;
-            }
-            list($name, $value) = preg_split('|: |', $header);
-            $headers[$name][] = $value;
-        }
+        $rawHeaders = preg_split('|(\\r?\\n)|', $raw);
+        $statusLine = array_shift($rawHeaders);
 
-        return [$statusLine, $headers];
+        return array_reduce($rawHeaders, function($parsedHeaders, $header) {
+            list($name, $value) = preg_split('|: |', $header);
+            $parsedHeaders[1][$name][] = $value;
+
+            return $parsedHeaders;
+        }, [$statusLine, []]);
     }
 
     /**
      * Set CURL options from the Request.
      *
-     * @param $curl
      * @param RequestInterface $request
      */
-    private function setOptionsFromRequest($curl, RequestInterface $request)
+    private function setOptionsFromRequest(RequestInterface $request)
     {
-        $options = array(
-            CURLOPT_HTTP_VERSION => $request->getProtocolVersion() === '1.0' ? CURL_HTTP_VERSION_1_0 : CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => $request->getMethod(),
-            CURLOPT_URL => (string) $request->getUri(),
-            CURLOPT_HTTPHEADER => $this->getHeaders($request),
-            CURLOPT_POSTFIELDS => (string) $request->getBody(),
+        curl_setopt_array(
+            $this->curl,
+            [
+                CURLOPT_HTTP_VERSION => $request->getProtocolVersion() === '1.0' ? CURL_HTTP_VERSION_1_0 : CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => $request->getMethod(),
+                CURLOPT_URL => (string) $request->getUri(),
+                CURLOPT_HTTPHEADER => $this->getHeaders($request),
+                CURLOPT_POSTFIELDS => (string) $request->getBody(),
+            ]
         );
-
-        curl_setopt_array($curl, $options);
     }
 
     /**
@@ -148,5 +133,13 @@ class Client implements HttpClient
         }
 
         return $headers;
+    }
+
+    /**
+     * Make sure to destroy $curl.
+     */
+    public function __destruct()
+    {
+        curl_close($this->curl);
     }
 }
