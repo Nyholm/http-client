@@ -5,7 +5,6 @@ namespace Nyholm\HttpClient;
 use Exception;
 use Http\Client\Exception\HttpException;
 use Http\Client\Exception\RequestException;
-use Http\Client\Exception\TransferException;
 use Http\Client\HttpClient;
 use Http\Discovery\MessageFactoryDiscovery;
 use Psr\Http\Message\RequestInterface;
@@ -47,9 +46,7 @@ class Client implements HttpClient
             throw new RequestException('Not a valid request.', $request);
         }
 
-        $data = curl_exec($this->curl);
-
-        if (false === $data) {
+        if (false === $data = curl_exec($this->curl)) {
             throw new RequestException(
                 sprintf('Error (%d): %s', curl_errno($this->curl), curl_error($this->curl)),
                 $request
@@ -107,6 +104,7 @@ class Client implements HttpClient
      * Set CURL options from the Request.
      *
      * @param RequestInterface $request
+     * @return bool
      */
     private function setOptionsFromRequest(RequestInterface $request)
     {
