@@ -2,6 +2,7 @@
 
 namespace Nyholm\HttpClient;
 
+use Exception;
 use Http\Client\Exception\HttpException;
 use Http\Client\Exception\RequestException;
 use Http\Client\Exception\TransferException;
@@ -34,7 +35,7 @@ class Client implements HttpClient
         $this->curl = curl_init();
 
         if (false === $this->curl) {
-            throw new TransferException('Unable to create a new cURL handle');
+            throw new Exception('Unable to create a new cURL handle');
         }
 
         curl_setopt_array($this->curl, self::CURL_DEFAULT_OPTIONS);
@@ -42,7 +43,10 @@ class Client implements HttpClient
 
     public function sendRequest(RequestInterface $request)
     {
-        $this->setOptionsFromRequest($request);
+        if (false === $this->setOptionsFromRequest($request)) {
+            throw new RequestException('Not a valid request.', $request);
+        }
+
         $data = curl_exec($this->curl);
 
         if (false === $data) {
@@ -106,7 +110,7 @@ class Client implements HttpClient
      */
     private function setOptionsFromRequest(RequestInterface $request)
     {
-        curl_setopt_array(
+        return curl_setopt_array(
             $this->curl,
             [
                 CURLOPT_HTTP_VERSION => $request->getProtocolVersion() === '1.0' ? CURL_HTTP_VERSION_1_0 : CURL_HTTP_VERSION_1_1,
