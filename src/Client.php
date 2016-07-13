@@ -18,6 +18,15 @@ class Client implements HttpClient
 {
     private $curl;
 
+    /**
+     * Make sure to destroy $curl.
+     */
+    public function __destruct()
+    {
+        curl_close($this->curl);
+        $this->curl = null;
+    }
+
     public function sendRequest(RequestInterface $request)
     {
         $curl = $this->createCurlHandle();
